@@ -199,6 +199,41 @@ This will analyze sample findings and display recommendations.
 | lambda latency | aws:lambda:invocation-add-delay | 5 min | Add Lambda invocation delay |
 | lambda http | aws:lambda:invocation-http-integration-response | 5 min | Test Lambda HTTP failures |
 
+#### Lambda Chaos Engineering Best Practices
+
+**Testing Cold Starts and Timeouts:**
+- Use `aws:lambda:invocation-add-delay` to simulate cold start scenarios
+- Set `startupDelayMilliseconds` higher than function timeout to test timeout handling
+- Validates retry logic, dead letter queues, and error handling
+
+**Error Handling Validation:**
+- Use `aws:lambda:invocation-error` with `preventExecution: true` to test without running code
+- Set `invocationPercentage` to gradually increase fault injection (start at 10-20%)
+- Verify CloudWatch alarms fire and monitoring captures errors
+
+**Integration Testing:**
+- Use `aws:lambda:invocation-http-integration-response` for ALB, API Gateway, VPC Lattice
+- Test upstream/downstream service behavior with custom HTTP status codes
+- Validate circuit breakers and fallback mechanisms
+
+**Continuous Testing in CI/CD:**
+- Automate Lambda FIS experiments in AWS CodePipeline post-deployment
+- Use CloudWatch Synthetics to monitor user experience during experiments
+- Set stop conditions based on error rate thresholds (e.g., >5% errors)
+
+**Experiment Safety:**
+- Start experiments in non-production with synthetic traffic
+- Use `invocationPercentage` parameter to limit blast radius
+- Configure CloudWatch alarms as stop conditions
+- Run during off-peak hours initially
+
+**Key Metrics to Monitor:**
+- Invocation errors and throttles
+- Duration and billed duration
+- Concurrent executions
+- Dead letter queue messages
+- Downstream service health
+
 ### Caching & Streaming
 | Finding Keyword | FIS Action | Duration | Use Case |
 |----------------|------------|----------|----------|
@@ -312,6 +347,94 @@ Modify duration values in ISO 8601 format:
 - Python 3.7+
 - AWS credentials configured (for actual FIS deployment)
 - MCP-compatible client (Kiro CLI, Claude Desktop, etc.)
+
+## Chaos Engineering Best Practices
+
+### The Chaos Engineering Flywheel
+
+Follow the scientific method for each experiment:
+
+1. **Define Steady State** - Establish measurable baseline metrics (TPS, latency, error rate)
+2. **Form Hypothesis** - Predict how the system will respond to the fault
+3. **Run Experiment** - Inject the fault in a controlled manner
+4. **Verify Results** - Compare actual behavior against hypothesis
+5. **Improve** - Address gaps and re-run experiments
+
+### Experiment Safety Guidelines
+
+**Start Small, Scale Gradually:**
+- Begin in non-production environments
+- Use synthetic traffic before real customer traffic
+- Start with low percentages (10-20%) and increase gradually
+- Run during off-peak hours initially
+
+**Implement Guardrails:**
+- Set CloudWatch alarms as stop conditions
+- Define clear rollback procedures
+- Monitor blast radius with real-time dashboards
+- Communicate with operations teams before experiments
+
+**Scope and Impact:**
+- Clearly define experiment boundaries
+- Use tags to target specific resources
+- Limit concurrent experiments
+- Document expected vs. actual impact
+
+### Continuous Chaos Testing
+
+**Automate in CI/CD:**
+- Integrate FIS experiments into AWS CodePipeline
+- Run experiments post-deployment automatically
+- Use results to gate production releases
+- Track experiment results over time
+
+**Game Days:**
+- Schedule regular chaos engineering sessions
+- Simulate realistic failure scenarios
+- Test incident response procedures
+- Validate runbooks and documentation
+
+### Key Metrics to Track
+
+**System Health:**
+- Request success rate (target: >99.9%)
+- Latency percentiles (p50, p95, p99)
+- Error rates (4xx, 5xx)
+- Resource utilization (CPU, memory, connections)
+
+**Resilience Indicators:**
+- Time to detect failures
+- Time to recovery
+- Blast radius of failures
+- Cascading failure prevention
+
+### Common Failure Scenarios
+
+**Network Failures:**
+- Partition tolerance between services
+- Cross-region connectivity loss
+- DNS resolution failures
+- Increased latency and packet loss
+
+**Resource Exhaustion:**
+- CPU and memory pressure
+- Connection pool exhaustion
+- Disk I/O saturation
+- API throttling and rate limits
+
+**Dependency Failures:**
+- Database failover and replication lag
+- Cache invalidation and cold starts
+- Third-party API unavailability
+- Message queue backlogs
+
+### References
+
+- [AWS Well-Architected Reliability Pillar](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/)
+- [Principles of Chaos Engineering](https://principlesofchaos.org/)
+- [AWS Fault Injection Simulator](https://docs.aws.amazon.com/fis/latest/userguide/)
+- [Chaos Testing with AWS FIS and CodePipeline](https://aws.amazon.com/blogs/architecture/chaos-testing-with-aws-fault-injection-simulator-and-aws-codepipeline/)
+- [Verify Resilience Using Chaos Engineering](https://aws.amazon.com/blogs/architecture/verify-the-resilience-of-your-workloads-using-chaos-engineering/)
 
 ## License
 

@@ -170,17 +170,49 @@ class FISRecommenderMCP:
             "lambda": {
                 "action": "aws:lambda:invocation-error",
                 "duration": "PT5M",
-                "description": "Inject Lambda invocation errors"
+                "description": "Inject Lambda invocation errors to test error handling",
+                "parameters": {
+                    "invocationPercentage": 20,
+                    "preventExecution": False
+                },
+                "best_practices": [
+                    "Start with 10-20% invocation percentage",
+                    "Monitor CloudWatch metrics for error rates",
+                    "Verify dead letter queue processing",
+                    "Test retry logic and exponential backoff"
+                ]
             },
             "lambda latency": {
                 "action": "aws:lambda:invocation-add-delay",
                 "duration": "PT5M",
-                "description": "Add delay to Lambda invocations"
+                "description": "Add delay to Lambda invocations to simulate cold starts",
+                "parameters": {
+                    "invocationPercentage": 20,
+                    "startupDelayMilliseconds": 1000
+                },
+                "best_practices": [
+                    "Test timeout handling by setting delay > function timeout",
+                    "Validate async invocation behavior",
+                    "Monitor billed duration increases",
+                    "Test downstream service timeout configurations"
+                ]
             },
             "lambda http": {
                 "action": "aws:lambda:invocation-http-integration-response",
                 "duration": "PT5M",
-                "description": "Test Lambda HTTP integration failures"
+                "description": "Test Lambda HTTP integration failures with custom responses",
+                "parameters": {
+                    "invocationPercentage": 20,
+                    "statusCode": 503,
+                    "contentTypeHeader": "application/json",
+                    "preventExecution": False
+                },
+                "best_practices": [
+                    "Test ALB/API Gateway error handling",
+                    "Validate circuit breaker patterns",
+                    "Monitor upstream service behavior",
+                    "Test different HTTP status codes (4xx, 5xx)"
+                ]
             },
             
             # Caching & Streaming
