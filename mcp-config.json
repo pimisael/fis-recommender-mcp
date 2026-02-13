@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "fis-recommender": {
+      "command": "python3",
+      "args": ["/Users/pimisael/fis-recommender-mcp/server.py"],
+      "env": {
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
+}

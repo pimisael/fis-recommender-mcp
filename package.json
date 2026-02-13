@@ -1,0 +1,22 @@
+{
+  "name": "fis-recommender-mcp",
+  "version": "1.0.0",
+  "description": "MCP server that recommends AWS FIS experiments based on DevOps Agent findings",
+  "main": "server.py",
+  "scripts": {
+    "test": "python3 test.sh"
+  },
+  "keywords": [
+    "mcp",
+    "aws",
+    "fis",
+    "chaos-engineering",
+    "fault-injection"
+  ],
+  "author": "pimisael@amazon.com",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pimisael/fis-recommender-mcp.git"
+  }
+}
