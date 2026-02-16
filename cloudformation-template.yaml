@@ -1,0 +1,199 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FIS Recommender MCP Server on Amazon Bedrock AgentCore - AWS Solutions Library'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'AgentCore Configuration'
+        Parameters:
+          - AgentCoreRuntimeName
+          - ContainerImage
+      - Label:
+          default: 'Security Configuration'
+        Parameters:
+          - EnableVPCEndpoint
+          - KMSKeyId
+      - Label:
+          default: 'Monitoring Configuration'
+        Parameters:
+          - EnableDetailedMonitoring
+          - LogRetentionDays
+
+Parameters:
+  AgentCoreRuntimeName:
+    Type: String
+    Default: 'fis-recommender-mcp'
+    Description: 'Name for the AgentCore Runtime environment'
+    
+  ContainerImage:
+    Type: String
+    Default: 'public.ecr.aws/solutions-library/fis-recommender-mcp:latest'
+    Description: 'Container image for FIS Recommender MCP Server'
+    
+  EnableVPCEndpoint:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: 'Enable VPC endpoint for private connectivity'
+    
+  KMSKeyId:
+    Type: String
+    Default: ''
+    Description: '(Optional) KMS Key ID for encryption at rest'
+    
+  EnableDetailedMonitoring:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: 'Enable detailed CloudWatch monitoring'
+    
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+    Description: 'CloudWatch Logs retention period in days'
+
+Conditions:
+  UseVPCEndpoint: !Equals [!Ref EnableVPCEndpoint, 'true']
+  UseKMSEncryption: !Not [!Equals [!Ref KMSKeyId, '']]
+  UseDetailedMonitoring: !Equals [!Ref EnableDetailedMonitoring, 'true']
+
+Resources:
+  # IAM Role for AgentCore Runtime
+  AgentCoreExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AgentCoreRuntimeName}-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/CloudWatchLogsFullAccess'
+      Policies:
+        - PolicyName: FISRecommenderPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'fis:GetExperimentTemplate'
+                  - 'fis:ListExperimentTemplates'
+                  - 'fis:CreateExperimentTemplate'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:DescribeSubnets'
+                  - 'ec2:DescribeVpcs'
+                Resource: '*'
+
+  # CloudWatch Log Group
+  MCPServerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/agentcore/${AgentCoreRuntimeName}'
+      RetentionInDays: !Ref LogRetentionDays
+      KmsKeyId: !If [UseKMSEncryption, !Ref KMSKeyId, !Ref 'AWS::NoValue']
+
+  # AgentCore Runtime (Placeholder - actual resource type TBD)
+  # Note: This is a conceptual representation
+  # Actual AgentCore Runtime resource will be defined based on AWS service availability
+  FISRecommenderMCPServer:
+    Type: AWS::Bedrock::AgentCoreRuntime
+    Properties:
+      RuntimeName: !Ref AgentCoreRuntimeName
+      ContainerImage: !Ref ContainerImage
+      ExecutionRoleArn: !GetAtt AgentCoreExecutionRole.Arn
+      LogConfiguration:
+        LogDriver: awslogs
+        Options:
+          awslogs-group: !Ref MCPServerLogGroup
+          awslogs-region: !Ref 'AWS::Region'
+          awslogs-stream-prefix: mcp-server
+      Environment:
+        - Name: AWS_REGION
+          Value: !Ref 'AWS::Region'
+        - Name: LOG_LEVEL
+          Value: INFO
+      Tags:
+        - Key: Solution
+          Value: FIS-Recommender-MCP
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # CloudWatch Alarms
+  MCPServerErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: UseDetailedMonitoring
+    Properties:
+      AlarmName: !Sub '${AgentCoreRuntimeName}-errors'
+      AlarmDescription: 'Alert when MCP server encounters errors'
+      MetricName: Errors
+      Namespace: AWS/AgentCore
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: RuntimeName
+          Value: !Ref AgentCoreRuntimeName
+
+  MCPServerLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: UseDetailedMonitoring
+    Properties:
+      AlarmName: !Sub '${AgentCoreRuntimeName}-latency'
+      AlarmDescription: 'Alert when MCP server latency is high'
+      MetricName: Duration
+      Namespace: AWS/AgentCore
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5000
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: RuntimeName
+          Value: !Ref AgentCoreRuntimeName
+
+Outputs:
+  MCPServerEndpoint:
+    Description: 'MCP Server endpoint URL'
+    Value: !Sub 'https://${FISRecommenderMCPServer.Endpoint}'
+    Export:
+      Name: !Sub '${AWS::StackName}-MCPServerEndpoint'
+
+  ExecutionRoleArn:
+    Description: 'IAM Role ARN for AgentCore Runtime'
+    Value: !GetAtt AgentCoreExecutionRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ExecutionRoleArn'
+
+  LogGroupName:
+    Description: 'CloudWatch Log Group name'
+    Value: !Ref MCPServerLogGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-LogGroupName'
+
+  MCPClientConfiguration:
+    Description: 'MCP Client configuration snippet'
+    Value: !Sub |
+      {
+        "mcpServers": {
+          "fis-recommender": {
+            "url": "https://${FISRecommenderMCPServer.Endpoint}",
+            "headers": {
+              "Authorization": "Bearer <YOUR_TOKEN>"
+            }
+          }
+        }
+      }
