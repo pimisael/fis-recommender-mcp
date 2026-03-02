@@ -51,6 +51,8 @@ Ask DevOps Agent:
 "Recommend FIS experiments for network latency issues"
 ```
 
+**See [Setup Guide](SETUP.md) for complete deployment instructions.**
+
 ### Option 2: Lambda Client (for API Gateway, EventBridge)
 
 ```bash
@@ -62,6 +64,8 @@ aws lambda invoke --function-name fis-recommender-mcp-client --region {REGION} \
   --payload '{"tool":"recommend_fis_experiments","arguments":{"finding":{"summary":"network latency"}}}' \
   response.json && cat response.json
 ```
+
+**See [Lambda Deploy Guide](LAMBDA_DEPLOY.md) for detailed instructions.**
 
 ## Local Development
 
