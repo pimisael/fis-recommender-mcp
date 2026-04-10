@@ -24,21 +24,34 @@ agentcore configure -e server.py --protocol MCP
 agentcore launch
 ```
 
+> **Windows Note:** If you see a platform mismatch warning (`linux/amd64` vs `linux/arm64`), use `agentcore launch` (not `agentcore deploy`) which does a remote cross-platform build via CodeBuild.
+
 #### Setup OAuth (Cognito)
 
+**Linux/macOS:**
 ```bash
 chmod +x setup_cognito.sh
 source setup_cognito.sh
 ```
 
-Save the output (Client ID, Discovery URL, Bearer Token).
+**Windows (PowerShell):**
+```powershell
+.\setup_cognito.ps1
+```
+
+Save the output values:
+- **Client ID** - needed for DevOps Agent registration
+- **Client Secret** - needed for DevOps Agent registration
+- **Discovery URL** - needed for `agentcore configure`
+- **Bearer Token** - needed for testing
 
 #### Register in DevOps Agent Console
 
 1. Go to AIDevOps → Your Agent → Settings → MCP Servers
 2. Add Server:
    - **Endpoint**: `https://bedrock-agentcore.{REGION}.amazonaws.com/runtimes/{ENCODED_ARN}/invocations`
-   - **Client ID**: From step 2
+   - **Client ID**: From OAuth setup output above
+   - **Client Secret**: From OAuth setup output above
    - **Exchange URL**: `https://{COGNITO_DOMAIN}.auth.{REGION}.amazoncognito.com/oauth2/token`
    - **Authorization URL**: `https://{COGNITO_DOMAIN}.auth.{REGION}.amazoncognito.com/oauth2/authorize`
    - **Scopes**: `openid`
@@ -55,11 +68,19 @@ Ask DevOps Agent:
 
 ### Option 2: Lambda Client (for API Gateway, EventBridge)
 
+**Linux/macOS:**
 ```bash
 chmod +x deploy_lambda.sh
 ./deploy_lambda.sh
+```
 
-# Test
+**Windows (PowerShell):**
+```powershell
+.\deploy_lambda.ps1
+```
+
+**Test:**
+```bash
 aws lambda invoke --function-name fis-recommender-mcp-client --region {REGION} \
   --payload '{"tool":"recommend_fis_experiments","arguments":{"finding":{"summary":"network latency"}}}' \
   response.json && cat response.json
@@ -402,9 +423,16 @@ Modify duration values in ISO 8601 format:
 
 ## Requirements
 
-- Python 3.7+
-- AWS credentials configured (for actual FIS deployment)
+- Python 3.10+
+- AWS CLI configured
+- AWS account with appropriate permissions
 - MCP-compatible client (Kiro CLI, Claude Desktop, etc.)
+
+### Windows Users
+- Use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), [Git Bash](https://git-scm.com/downloads), or PowerShell scripts provided
+- Python code is fully cross-platform
+- PowerShell equivalents: `setup_cognito.ps1`, `deploy_lambda.ps1`
+- If `agentcore configure` falls back to Container deployment ("zip utility not found"), install zip via `choco install zip` or `scoop install zip`, then re-run. Container deployment also works but is slower.
 
 ## Chaos Engineering Best Practices
 

@@ -1,13 +1,23 @@
 # FIS Recommender MCP - Setup Instructions
 
+## Prerequisites
+
+- Python 3.10+
+- AWS CLI configured
+- AWS account with appropriate permissions
+
 ## 1. Project Setup
 
+### Linux/macOS
 ```bash
-# Create project structure
 mkdir fis-recommender-mcp && cd fis-recommender-mcp
-
-# Create files
 touch server.py requirements.txt __init__.py
+```
+
+### Windows (PowerShell)
+```powershell
+mkdir fis-recommender-mcp; cd fis-recommender-mcp
+New-Item server.py, requirements.txt, __init__.py
 ```
 
 **requirements.txt**:
@@ -46,6 +56,19 @@ agentcore launch
 **Output**: Agent ARN like `arn:aws:bedrock-agentcore:us-east-1:ACCOUNT:runtime/NAME-ID`
 
 ## 5. Setup Cognito OAuth
+
+### Linux/macOS
+```bash
+chmod +x setup_cognito.sh
+source setup_cognito.sh
+```
+
+### Windows (PowerShell)
+```powershell
+.\setup_cognito.ps1
+```
+
+### Manual Steps (any OS)
 
 ```bash
 # Set variables
@@ -96,21 +119,29 @@ echo "Discovery URL: https://cognito-idp.$REGION.amazonaws.com/$POOL_ID/.well-kn
 ## 6. Create Cognito Domain (for DevOps Agent Console)
 
 **AWS Console**:
-1. Go to Cognito → User Pools → FisMcpPool
+1. Go to Cognito → User Pools → your pool
 2. App integration → Domain → Create domain
-3. Domain name: `fismcp` (no underscores)
+3. Domain name: e.g. `fismcp` (no underscores)
 
+**CLI (Linux/macOS)**:
 ```bash
- aws cognito-idp create-user-pool-domain \                                                                                             
+aws cognito-idp create-user-pool-domain \
   --domain fismcp \
-  --user-pool-id us-east-1_kx5WFdg3m \
-  --region us-east-1
+  --user-pool-id $POOL_ID \
+  --region $REGION
+```
 
+**CLI (Windows PowerShell)**:
+```powershell
+aws cognito-idp create-user-pool-domain `
+  --domain fismcp `
+  --user-pool-id $POOL_ID `
+  --region $REGION
 ```
 
 **OAuth URLs**:
-- Exchange URL: `https://fismcp.auth.us-east-1.amazoncognito.com/oauth2/token`
-- Authorization URL: `https://fismcp.auth.us-east-1.amazoncognito.com/oauth2/authorize`
+- Exchange URL: `https://{DOMAIN}.auth.{REGION}.amazoncognito.com/oauth2/token`
+- Authorization URL: `https://{DOMAIN}.auth.{REGION}.amazoncognito.com/oauth2/authorize`
 
 ## 7. Configure Callback URL
 
@@ -128,49 +159,84 @@ echo "Discovery URL: https://cognito-idp.$REGION.amazonaws.com/$POOL_ID/.well-kn
 1. Go to AIDevOps → Your Agent → Settings → MCP Servers
 2. Add Server:
    - **Name**: FIS Recommender
-   - **Endpoint**: `https://bedrock-agentcore.us-east-1.amazonaws.com/runtimes/ARN_ENCODED/invocations`
+   - **Endpoint**: `https://bedrock-agentcore.{REGION}.amazonaws.com/runtimes/{ENCODED_ARN}/invocations`
    - **Client ID**: `<from step 5>`
-   - **Exchange URL**: `https://fismcp.auth.us-east-1.amazoncognito.com/oauth2/token`
-   - **Authorization URL**: `https://fismcp.auth.us-east-1.amazoncognito.com/oauth2/authorize`
+   - **Exchange URL**: `https://{DOMAIN}.auth.{REGION}.amazoncognito.com/oauth2/token`
+   - **Authorization URL**: `https://{DOMAIN}.auth.{REGION}.amazoncognito.com/oauth2/authorize`
    - **Scopes**: `openid`
    - **PKCE**: Enabled
 
 ## 9. Test Locally
 
+### Linux/macOS
 ```bash
-# Start server
 python server.py
+# New terminal:
+python mcp_test.py
+```
 
-# Test (new terminal)
+### Windows (PowerShell)
+```powershell
+python server.py
+# New terminal:
 python mcp_test.py
 ```
 
 ## 10. Test Remote
 
+### Linux/macOS
 ```bash
 export AGENT_ARN="<from step 4>"
 export BEARER_TOKEN="<from step 5>"
 python mcp_remote_test.py
 ```
 
+### Windows (PowerShell)
+```powershell
+$env:AGENT_ARN = "<from step 4>"
+$env:BEARER_TOKEN = "<from step 5>"
+python mcp_remote_test.py
+```
+
+## Optional: Deploy Lambda Client
+
+### Linux/macOS
+```bash
+chmod +x deploy_lambda.sh
+./deploy_lambda.sh
+```
+
+### Windows (PowerShell)
+```powershell
+.\deploy_lambda.ps1
+```
+
 ## Quick Reference
 
-**Refresh Token**:
+**Refresh Token (Linux/macOS)**:
 ```bash
 aws cognito-idp initiate-auth \
   --client-id $CLIENT_ID \
   --auth-flow USER_PASSWORD_AUTH \
   --auth-parameters USERNAME=$USERNAME,PASSWORD=$PASSWORD \
-  --region us-east-1 | jq -r '.AuthenticationResult.AccessToken'
+  --region $REGION | jq -r '.AuthenticationResult.AccessToken'
 ```
 
-**Encode ARN for URL**:
+**Refresh Token (Windows PowerShell)**:
+```powershell
+(aws cognito-idp initiate-auth `
+  --client-id $CLIENT_ID `
+  --auth-flow USER_PASSWORD_AUTH `
+  --auth-parameters "USERNAME=$USERNAME,PASSWORD=$PASSWORD" `
+  --region $REGION | ConvertFrom-Json).AuthenticationResult.AccessToken
+```
+
+**Encode ARN for URL (any OS)**:
 ```bash
-echo -n "arn:aws:..." | python3 -c "import sys; from urllib.parse import quote; print(quote(sys.stdin.read(), safe=''))"
+python -c "from urllib.parse import quote; print(quote('arn:aws:...', safe=''))"
 ```
 
-
-**Generate Secret for Devops Agent**:
-```bash 
-aws cognito-idp create-user-pool-client --user-pool-id $POOL_ID --client-name MyClient --generate-secret --region us-east-1
+**Generate Secret for DevOps Agent**:
+```bash
+aws cognito-idp create-user-pool-client --user-pool-id $POOL_ID --client-name MyClient --generate-secret --region $REGION
 ```
