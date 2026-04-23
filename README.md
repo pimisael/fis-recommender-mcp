@@ -28,15 +28,8 @@ agentcore launch
 
 #### Setup OAuth (Cognito)
 
-**Linux/macOS:**
 ```bash
-chmod +x setup_cognito.sh
-source setup_cognito.sh
-```
-
-**Windows (PowerShell):**
-```powershell
-.\setup_cognito.ps1
+python setup_cognito_fis.py
 ```
 
 Save the output values:
@@ -68,19 +61,10 @@ Ask DevOps Agent:
 
 ### Option 2: Lambda Client (for API Gateway, EventBridge)
 
-**Linux/macOS:**
 ```bash
-chmod +x deploy_lambda.sh
-./deploy_lambda.sh
-```
+python deploy_lambda.py
 
-**Windows (PowerShell):**
-```powershell
-.\deploy_lambda.ps1
-```
-
-**Test:**
-```bash
+# Test
 aws lambda invoke --function-name fis-recommender-mcp-client --region {REGION} \
   --payload '{"tool":"recommend_fis_experiments","arguments":{"finding":{"summary":"network latency"}}}' \
   response.json && cat response.json
@@ -429,9 +413,8 @@ Modify duration values in ISO 8601 format:
 - MCP-compatible client (Kiro CLI, Claude Desktop, etc.)
 
 ### Windows Users
-- Use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), [Git Bash](https://git-scm.com/downloads), or PowerShell scripts provided
-- Python code is fully cross-platform
-- PowerShell equivalents: `setup_cognito.ps1`, `deploy_lambda.ps1`
+- All scripts are Python-based and fully cross-platform
+- Use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) or [Git Bash](https://git-scm.com/downloads) if needed for shell commands
 - If `agentcore configure` falls back to Container deployment ("zip utility not found"), install zip via `choco install zip` or `scoop install zip`, then re-run. Container deployment also works but is slower.
 
 ## Chaos Engineering Best Practices

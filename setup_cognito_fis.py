@@ -107,7 +107,7 @@ def main():
         pool = run_aws([
             "cognito-idp", "create-user-pool",
             "--pool-name", pool_name,
-            "--policies", '{"PasswordPolicy":{"MinimumLength":8}}',
+            "--policies", '{"PasswordPolicy":{"MinimumLength":12,"RequireUppercase":true,"RequireLowercase":true,"RequireNumbers":true,"RequireSymbols":true}}',
         ], region=region, check=True)
         pool_id = pool["UserPool"]["Id"]
         print(f"✅ Created User Pool: {pool_id}")

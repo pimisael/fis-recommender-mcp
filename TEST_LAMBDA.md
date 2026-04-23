@@ -22,7 +22,7 @@ aws lambda invoke --function-name fis-recommender-mcp-client --region us-east-1 
         "resourceType": "aws:ec2:instance",
         "selectionMode": "COUNT(1)",
         "tags": {"Environment": "staging"},
-        "roleArn": "arn:aws:iam::815635340291:role/FISExecutionRole"
+        "roleArn": "arn:aws:iam::<ACCOUNT_ID>:role/FISExecutionRole"
       }
     }
   }' \

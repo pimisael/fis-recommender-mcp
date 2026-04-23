@@ -27,3 +27,10 @@ response.json
 
 # IDE
 .idea/
+
+# Sensitive files
+*.pem
+*.key
+trust-policy.json
+bedrock-policy.json
+payload.json

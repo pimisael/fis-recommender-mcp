@@ -22,7 +22,7 @@
                              ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │         Bedrock AgentCore Runtime (us-east-1)                    │
-│  ARN: arn:aws:bedrock-agentcore:us-east-1:815635340291:         │
+│  ARN: arn:aws:bedrock-agentcore:us-east-1:<ACCOUNT_ID>:         │
 │       runtime/fisRecommender2-FrGh02GmrK                         │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────┐     │

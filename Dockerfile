@@ -7,6 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server.py .
 
+RUN adduser --disabled-password --gecos '' appuser
+USER appuser
+
 EXPOSE 8000
 
 CMD ["python", "server.py"]
