@@ -1,8 +1,12 @@
-FROM public.ecr.aws/lambda/python:3.13
+FROM public.ecr.aws/docker/library/python:3.13-slim
+
+WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server.py .
 
-CMD ["python3", "server.py"]
+EXPOSE 8000
+
+CMD ["python", "server.py"]

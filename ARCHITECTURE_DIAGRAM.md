@@ -1,224 +1,138 @@
-# FIS Recommender - Solutions Library Architecture Diagram
+# FIS Recommender MCP - Architecture Diagram
 
-## High-Level Architecture
-
-```
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                                                                                │
-│                          AWS Cloud (Customer Account)                          │
-│                                                                                │
-│  ┌──────────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                            │ │
-│  │                      Amazon Bedrock AgentCore                             │ │
-│  │                                                                            │ │
-│  │    ┌────────────────────────────────────────────────────────────────┐    │ │
-│  │    │                                                                  │    │ │
-│  │    │              AgentCore Runtime Environment                       │    │ │
-│  │    │                                                                  │    │ │
-│  │    │   ┌──────────────────────────────────────────────────────┐     │    │ │
-│  │    │   │                                                        │     │    │ │
-│  │    │   │      FIS Recommender MCP Server (Container)           │     │    │ │
-│  │    │   │                                                        │     │    │ │
-│  │    │   │   Tools:                                              │     │    │ │
-│  │    │   │   • recommend_fis_experiments                         │     │    │ │
-│  │    │   │   • create_fis_template                               │     │    │ │
-│  │    │   │                                                        │     │    │ │
-│  │    │   │   Finding Mappings: 50+ AWS service scenarios         │     │    │ │
-│  │    │   │                                                        │     │    │ │
-│  │    │   └──────────────────────────────────────────────────────┘     │    │ │
-│  │    │                                                                  │    │ │
-│  │    │   Protocol: HTTP/HTTPS (Stateless)                              │    │ │
-│  │    │   Session: Mcp-Session-Id header                                │    │ │
-│  │    │                                                                  │    │ │
-│  │    └────────────────────────────────────────────────────────────────┘    │ │
-│  │                                                                            │ │
-│  └──────────────────────────────────────────────────────────────────────────┘ │
-│                                    ▲                                           │
-│                                    │                                           │
-│                                    │ HTTPS/MCP Protocol                        │
-│                                    │                                           │
-│  ┌──────────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                            │ │
-│  │                          MCP Client Layer                                 │ │
-│  │                                                                            │ │
-│  │   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────────────┐  │ │
-│  │   │          │    │          │    │          │    │                    │  │ │
-│  │   │ Kiro CLI │    │  Claude  │    │ Amazon Q │    │ Custom Apps      │  │ │
-│  │   │          │    │ Desktop  │    │Developer │    │ (MCP SDK)        │  │ │
-│  │   │          │    │          │    │          │    │                    │  │ │
-│  │   └──────────┘    └──────────┘    └──────────┘    └──────────────────┘  │ │
-│  │                                                                            │ │
-│  └──────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                │
-│  ┌──────────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                            │ │
-│  │                      AWS Services Integration                             │ │
-│  │                                                                            │ │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │ │
-│  │   │              │  │              │  │              │  │            │  │ │
-│  │   │   AWS FIS    │  │  CloudWatch  │  │     SSM      │  │ CloudTrail │  │ │
-│  │   │              │  │   Alarms     │  │              │  │            │  │ │
-│  │   │              │  │              │  │              │  │            │  │ │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘  └────────────┘  │ │
-│  │                                                                            │ │
-│  │   Experiment       Stop Conditions    Custom Faults    Audit Logging      │ │
-│  │   Execution        & Monitoring       Injection        & Compliance       │ │
-│  │                                                                            │ │
-│  └──────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                │
-│  ┌──────────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                            │ │
-│  │                      Security & Access Control                            │ │
-│  │                                                                            │ │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │ │
-│  │   │              │  │              │  │              │  │            │  │ │
-│  │   │  IAM Roles   │  │  AWS KMS     │  │   Secrets    │  │    VPC     │  │ │
-│  │   │  & Policies  │  │  Encryption  │  │   Manager    │  │  Endpoints │  │ │
-│  │   │              │  │              │  │              │  │            │  │ │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘  └────────────┘  │ │
-│  │                                                                            │ │
-│  └──────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                │
-└───────────────────────────────────────────────────────────────────────────────┘
-
-                                  Data Flow
-                                  ─────────
-
-    ┌─────────────┐
-    │   DevOps    │
-    │   Agent     │──────┐
-    │  (Findings) │      │
-    └─────────────┘      │
-                         │ 1. Operational Finding
-                         ▼
-    ┌─────────────────────────────────────┐
-    │        MCP Client                   │
-    │  (Kiro CLI / Claude / Amazon Q)     │
-    └─────────────────────────────────────┘
-                         │
-                         │ 2. MCP Request
-                         │    (recommend_fis_experiments)
-                         ▼
-    ┌─────────────────────────────────────┐
-    │   FIS Recommender MCP Server        │
-    │   (AgentCore Runtime)               │
-    │                                     │
-    │   • Analyze finding keywords        │
-    │   • Match to FIS actions            │
-    │   • Generate recommendations        │
-    └─────────────────────────────────────┘
-                         │
-                         │ 3. Recommendations
-                         ▼
-    ┌─────────────────────────────────────┐
-    │        MCP Client                   │
-    │  Reviews recommendations            │
-    └─────────────────────────────────────┘
-                         │
-                         │ 4. MCP Request
-                         │    (create_fis_template)
-                         ▼
-    ┌─────────────────────────────────────┐
-    │   FIS Recommender MCP Server        │
-    │                                     │
-    │   • Generate FIS template           │
-    │   • Include target config           │
-    │   • Add stop conditions             │
-    └─────────────────────────────────────┘
-                         │
-                         │ 5. FIS Template
-                         ▼
-    ┌─────────────────────────────────────┐
-    │        Customer                     │
-    │  Deploys to AWS FIS                 │
-    └─────────────────────────────────────┘
-                         │
-                         │ 6. Execute Experiment
-                         ▼
-    ┌─────────────────────────────────────┐
-    │         AWS FIS                     │
-    │  Runs chaos engineering experiment  │
-    └─────────────────────────────────────┘
-                         │
-                         │ 7. Monitor
-                         ▼
-    ┌─────────────────────────────────────┐
-    │       CloudWatch                    │
-    │  Metrics, Alarms, Stop Conditions   │
-    └─────────────────────────────────────┘
-```
-
-## Deployment Architecture
+## Primary Flow (DevOps Agent → AgentCore)
 
 ```
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                                                                                │
-│                    Infrastructure as Code Deployment                          │
-│                                                                                │
-│  ┌──────────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                            │ │
-│  │                      Deployment Options                                   │ │
-│  │                                                                            │ │
-│  │   ┌──────────────┐    ┌──────────────┐    ┌──────────────────────────┐  │ │
-│  │   │              │    │              │    │                          │  │ │
-│  │   │ CloudFormation│   │   AWS CDK    │    │      Terraform           │  │ │
-│  │   │   Template   │    │  (TypeScript)│    │       (HCL)              │  │ │
-│  │   │              │    │              │    │                          │  │ │
-│  │   │  • YAML      │    │  • Python    │    │  • Multi-cloud           │  │ │
-│  │   │  • One-click │    │  • TypeScript│    │  • Enterprise            │  │ │
-│  │   │  • Console   │    │  • Java      │    │  • State management      │  │ │
-│  │   │              │    │              │    │                          │  │ │
-│  │   └──────────────┘    └──────────────┘    └──────────────────────────┘  │ │
-│  │                                                                            │ │
-│  └──────────────────────────────────────────────────────────────────────────┘ │
-│                                    │                                           │
-│                                    │ Provisions                                │
-│                                    ▼                                           │
-│  ┌──────────────────────────────────────────────────────────────────────────┐ │
-│  │                                                                            │ │
-│  │                      Provisioned Resources                                │ │
-│  │                                                                            │ │
-│  │   • AgentCore Runtime environment                                         │ │
-│  │   • FIS Recommender MCP Server (container)                                │ │
-│  │   • IAM roles and policies                                                │ │
-│  │   • CloudWatch log groups                                                 │ │
-│  │   • (Optional) VPC endpoints                                              │ │
-│  │   • (Optional) KMS encryption keys                                        │ │
-│  │                                                                            │ │
-│  └──────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                │
-└───────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                         DevOps Agent                             │
+│  (Native MCP Client - Recommended)                               │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                             │ HTTPS + OAuth (Cognito)
+                             │ MCP Protocol (Streamable HTTP)
+                             │
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│              AWS Cognito User Pool (us-east-1)                   │
+│  Pool: us-east-1_kx5WFdg3m                                       │
+│  Domain: fismcp.auth.us-east-1.amazoncognito.com                 │
+│  Flow: OAuth 2.0 + PKCE                                          │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │ Bearer Token
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│         Bedrock AgentCore Runtime (us-east-1)                    │
+│  ARN: arn:aws:bedrock-agentcore:us-east-1:815635340291:         │
+│       runtime/fisRecommender2-FrGh02GmrK                         │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │              MCP Server (server.py)                    │     │
+│  │                                                        │     │
+│  │  Tools:                                               │     │
+│  │  ┌──────────────────────────────────────────────┐     │     │
+│  │  │ recommend_fis_experiments                    │     │     │
+│  │  │ Input: {"finding": {"summary": "..."}}       │     │     │
+│  │  │ Output: FIS action recommendations           │     │     │
+│  │  └──────────────────────────────────────────────┘     │     │
+│  │                                                        │     │
+│  │  ┌──────────────────────────────────────────────┐     │     │
+│  │  │ create_fis_template                          │     │     │
+│  │  │ Input: recommendation + target details       │     │     │
+│  │  │ Output: FIS template ID + ARN                │     │     │
+│  │  └──────────────────────────────────────────────┘     │     │
+│  └────────────────────────────────────────────────────────┘     │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                             │ boto3
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    AWS FIS Service                               │
+│  CreateExperimentTemplate API                                    │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-## Key Features for Solutions Library
+## Optional Flow (Lambda → AgentCore)
 
-1. **One-Click Deployment**
-   - CloudFormation template in S3
-   - Launch Stack button in AWS Console
-   - Automated resource provisioning
+```
+┌──────────────────────────────────────────────────────────────────┐
+│              External Trigger                                    │
+│  (API Gateway / EventBridge / Manual Invoke)                     │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│         AWS Lambda (us-east-1)                                   │
+│  Function: fis-recommender-mcp-client                            │
+│  Runtime: Python 3.13                                            │
+│  Timeout: 120s (2 min)                                           │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │  1. Get Cognito token (InitiateAuth)                  │     │
+│  │  2. Call MCP server via streamablehttp_client         │     │
+│  │  3. Return result                                     │     │
+│  └────────────────────────────────────────────────────────┘     │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                             │ MCP Client SDK
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│         Bedrock AgentCore Runtime                                │
+│  (Same as above)                                                 │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-2. **Infrastructure as Code**
-   - CloudFormation (YAML/JSON)
-   - AWS CDK (TypeScript, Python, Java)
-   - Terraform (HCL)
+## Component Details
 
-3. **Well-Architected**
-   - All 6 pillars addressed
-   - Security best practices
-   - Cost optimization
+### DevOps Agent
+- **Type**: Native MCP client
+- **Protocol**: MCP over Streamable HTTP
+- **Auth**: OAuth 2.0 with PKCE
+- **Advantages**: No timeout, streaming, lower latency
 
-4. **Comprehensive Documentation**
-   - Implementation guide
-   - Architecture diagrams
-   - API reference
-   - Troubleshooting guide
+### Lambda Client
+- **Type**: MCP client wrapper
+- **Use Case**: Non-MCP systems
+- **Limitations**: 15-min timeout, cold starts
+- **When to Use**: API Gateway, EventBridge, legacy systems
 
-5. **Sample Code**
-   - GitHub repository
-   - Example integrations
-   - Test scripts
+### AgentCore Runtime
+- **Region**: us-east-1
+- **Protocol**: MCP
+- **Transport**: Streamable HTTP
+- **Session**: Stateless with Mcp-Session-Id header
 
-6. **Cost Transparency**
-   - Estimated monthly costs
-   - Pay-per-use pricing
-   - No upfront costs
+### Authentication
+- **Provider**: AWS Cognito
+- **Method**: OAuth 2.0 Authorization Code + PKCE
+- **Token**: JWT Bearer token (1 hour expiry)
+- **Refresh**: USER_PASSWORD_AUTH flow
+
+## Network Flow
+
+```
+Request:
+POST https://bedrock-agentcore.us-east-1.amazonaws.com/runtimes/{ARN}/invocations
+Headers:
+  Authorization: Bearer {token}
+  Content-Type: application/json
+Body:
+  {
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "recommend_fis_experiments",
+      "arguments": {"finding": {"summary": "network latency"}}
+    }
+  }
+
+Response:
+  {
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [{
+        "type": "text",
+        "text": "{\"recommendations\": [...]}"
+      }]
+    }
+  }
+```

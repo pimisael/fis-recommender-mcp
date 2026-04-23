@@ -10,3 +10,20 @@ venv/
 .DS_Store
 *.swp
 .env
+
+# Lambda
+lambda_package/
+lambda_deployment.zip
+response.json
+
+# Local config files with credentials
+*.local.sh
+*.local.md
+.fis_config.json
+
+# AgentCore
+.bedrock_agentcore.yaml
+.bedrock_agentcore/
+
+# IDE
+.idea/
