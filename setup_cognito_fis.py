@@ -200,28 +200,22 @@ def main():
     token_url = f"https://{domain}.auth.{region}.amazoncognito.com/oauth2/token"
     print(f"\n🔧 Testing client_credentials token exchange...")
 
-    import subprocess
-    import sys
     import base64
     auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-    curl_result = subprocess.run([
-        sys.executable, "-c",
-        f"""
-
-import urllib.request, urllib.parse
-data = urllib.parse.urlencode({{'grant_type': 'client_credentials', 'scope': '{fis_scope}'}}).encode()
-req = urllib.request.Request('{token_url}', data=data)
-req.add_header('Content-Type', 'application/x-www-form-urlencoded')
-req.add_header('Authorization', 'Basic {auth_header}')
-resp = urllib.request.urlopen(req)
-print(resp.read().decode())
-"""
-    ], capture_output=True, text=True)
-
-    if "access_token" in curl_result.stdout:
-        print(f"✅ Token exchange successful")
-    else:
-        print(f"❌ Token exchange failed: {curl_result.stdout} {curl_result.stderr}")
+    try:
+        import urllib.request, urllib.parse
+        data = urllib.parse.urlencode({"grant_type": "client_credentials", "scope": fis_scope}).encode()
+        req = urllib.request.Request(token_url, data=data)
+        req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        req.add_header("Authorization", f"Basic {auth_header}")
+        resp = urllib.request.urlopen(req)
+        token_response = resp.read().decode()
+        if "access_token" in token_response:
+            print(f"✅ Token exchange successful")
+        else:
+            print(f"❌ Token exchange failed: {token_response}")
+    except Exception as e:
+        print(f"❌ Token exchange failed: {e}")
 
     # --- Output Summary ---
     discovery_url = f"https://cognito-idp.{region}.amazonaws.com/{pool_id}/.well-known/openid-configuration"
@@ -248,7 +242,9 @@ print(resp.read().decode())
 
     print(f"  Client ID:      {client_id}")
 
-    print(f"  Client Secret:  {client_secret}")
+    masked_secret = f"****{client_secret[-4:]}" if client_secret and len(client_secret) > 4 else "****"
+
+    print(f"  Client Secret:  {masked_secret}")
 
     print(f"  Discovery URL:  {discovery_url}")
 
@@ -269,11 +265,14 @@ print(resp.read().decode())
 
     print(f"  Client ID:      {client_id}")
 
-    print(f"  Client Secret:  {client_secret}")
+    print(f"  Client Secret:  {masked_secret}")
 
     print(f"  Exchange URL:   {exchange_url}")
 
     print(f"  Scope:          {fis_scope}")
+
+    print()
+    print("  ⚠️  Full secret saved to .fis_config.json (not committed to git)")
 
     print("=" * 60)
 

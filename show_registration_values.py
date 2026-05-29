@@ -194,7 +194,8 @@ def main():
         print("  Client ID:     ❌ Not found. Run setup_cognito_cross.py first.")
 
     if client_secret:
-        print(f"  Client Secret: {client_secret}")
+        masked_secret = f"****{client_secret[-4:]}" if len(client_secret) > 4 else "****"
+        print(f"  Client Secret: {masked_secret} (full value saved to .fis_config.json)")
     else:
         print("  Client Secret: ❌ Not found.")
 

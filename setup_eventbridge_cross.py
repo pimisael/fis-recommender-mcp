@@ -339,7 +339,8 @@ def main():
     print("  Lambda environment variables needed:")
     print(f"    AGENT_ARN={agent_arn}")
     print(f"    COGNITO_CLIENT_ID={client_id}")
-    print(f"    COGNITO_CLIENT_SECRET={client_secret}")
+    masked_secret = f"****{client_secret[-4:]}" if client_secret and len(client_secret) > 4 else "****"
+    print(f"    COGNITO_CLIENT_SECRET={masked_secret} (retrieve full value from .fis_config.json)")
     print(f"    COGNITO_TOKEN_URL={token_url}")
     print(f"    COGNITO_SCOPE={scope}")
     print(f"    SNS_TOPIC_ARN={sns_topic_arn}")

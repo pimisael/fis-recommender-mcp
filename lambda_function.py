@@ -36,6 +36,10 @@ def get_bearer_token():
     token_url = os.environ["COGNITO_TOKEN_URL"]
     scope = os.environ.get("COGNITO_SCOPE", "default-fis-resource-server/read")
 
+    import re
+    if not re.match(r"^https://[\w-]+\.auth\.[\w-]+\.amazoncognito\.com/oauth2/token$", token_url):
+        raise ValueError(f"Invalid token URL: must be a valid Cognito endpoint, got: {token_url}")
+
     auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
     data = urllib.parse.urlencode({
         "grant_type": "client_credentials",
@@ -99,7 +103,13 @@ def lambda_handler(event, context):
             }
         }
     else:
+        ALLOWED_TOOLS = {"recommend_fis_experiments"}
         tool_name = event.get("tool", "recommend_fis_experiments")
+        if tool_name not in ALLOWED_TOOLS:
+            return {
+                "statusCode": 403,
+                "body": json.dumps({"error": f"Tool not allowed: {tool_name}", "allowed": sorted(ALLOWED_TOOLS)}),
+            }
         arguments = event.get("arguments", {})
 
     result = asyncio.run(call_mcp_tool(tool_name, arguments))
