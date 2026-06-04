@@ -34,3 +34,7 @@ response.json
 trust-policy.json
 bedrock-policy.json
 payload.json
+pre-cr
+
+# CSE security scanner artifacts (auto-added by cse init)
+.security-scan/

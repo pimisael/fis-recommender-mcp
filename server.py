@@ -1,12 +1,15 @@
+import os
 import json
 import re
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP(host="0.0.0.0", stateless_http=True)
+SERVER_HOST = os.environ.get("MCP_HOST", "127.0.0.1")
+mcp = FastMCP(host=SERVER_HOST, stateless_http=True)
 
 MAX_INPUT_SIZE = 10240  # 10KB
 MAX_DURATION_MINUTES = 60
 ROLE_ARN_PATTERN = re.compile(r"^arn:aws:iam::\d{12}:role/[\w+=,.@-]+$")
+STOP_CONDITION_ARN_PATTERN = re.compile(r"^arn:aws:cloudwatch:[\w-]+:\d{12}:alarm:[\w+=,.@/-]+$")
 
 ALLOWED_ACTIONS = {
     "aws:network:disrupt-connectivity",
@@ -85,6 +88,12 @@ def create_fis_template(recommendation: dict, target: dict) -> str:
         if not ROLE_ARN_PATTERN.match(role_arn):
             return json.dumps({"error": "Invalid roleArn format. Expected arn:aws:iam::<account>:role/<name>"})
 
+        # Ensure roleArn and stopConditionArn belong to the same account
+        role_account = role_arn.split(":")[4]
+        stop_account = target.get("stopConditionArn", "").split(":")[4] if target.get("stopConditionArn") else ""
+        if stop_account and role_account != stop_account:
+            return json.dumps({"error": "roleArn and stopConditionArn must belong to the same AWS account"})
+
         selection_mode = target.get("selectionMode", "COUNT(1)")
         if not ALLOWED_SELECTION_MODES.match(selection_mode):
             return json.dumps({"error": f"Invalid selectionMode: {selection_mode}. Use COUNT(n) or PERCENT(n)"})
@@ -96,6 +105,8 @@ def create_fis_template(recommendation: dict, target: dict) -> str:
         stop_condition_arn = target.get("stopConditionArn", "")
         if not stop_condition_arn:
             return json.dumps({"error": "stopConditionArn is required. Provide a CloudWatch alarm ARN as a safety guardrail"})
+        if not STOP_CONDITION_ARN_PATTERN.match(stop_condition_arn):
+            return json.dumps({"error": "Invalid stopConditionArn format. Expected arn:aws:cloudwatch:<region>:<account>:alarm:<name>"})
 
         template = {
             "description": description[:500],
