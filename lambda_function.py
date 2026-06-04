@@ -32,13 +32,22 @@ from mcp.client.streamable_http import streamablehttp_client
 # ============================================================
 def get_bearer_token():
     client_id = os.environ["COGNITO_CLIENT_ID"]
-    client_secret = os.environ["COGNITO_CLIENT_SECRET"]
     token_url = os.environ["COGNITO_TOKEN_URL"]
     scope = os.environ.get("COGNITO_SCOPE", "default-fis-resource-server/read")
 
     import re
     if not re.match(r"^https://[\w-]+\.auth\.[\w-]+\.amazoncognito\.com/oauth2/token$", token_url):
         raise ValueError(f"Invalid token URL: must be a valid Cognito endpoint, got: {token_url}")
+
+    # Retrieve client secret from Secrets Manager
+    import boto3
+    secret_arn = os.environ.get("COGNITO_CLIENT_SECRET_ARN")
+    if secret_arn:
+        sm = boto3.client("secretsmanager")
+        client_secret = sm.get_secret_value(SecretId=secret_arn)["SecretString"]
+    else:
+        # Fallback for local testing
+        client_secret = os.environ["COGNITO_CLIENT_SECRET"]
 
     auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
     data = urllib.parse.urlencode({

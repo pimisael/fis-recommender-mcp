@@ -103,6 +103,21 @@ def ensure_iam_role(account_id):
         "--policy-document", sns_policy,
     ], region=REGION, check=True)
 
+    secrets_policy = json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Action": "secretsmanager:GetSecretValue",
+            "Resource": f"arn:aws:secretsmanager:{REGION}:{account_id}:secret:fis-mcp/*"
+        }]
+    })
+    run_aws([
+        "iam", "put-role-policy",
+        "--role-name", ROLE_NAME,
+        "--policy-name", "secrets-read",
+        "--policy-document", secrets_policy,
+    ], region=REGION, check=True)
+
     arn = f"arn:aws:iam::{account_id}:role/{ROLE_NAME}"
     print(f"✅ Created IAM role: {arn}")
     print("   Waiting 10s for role propagation...")
@@ -249,10 +264,32 @@ def main():
     role_arn = ensure_iam_role(account_id)
     build_package()
 
+    # Store client secret in Secrets Manager
+    secret_name = f"fis-mcp/{FUNCTION_NAME}/cognito-client-secret"
+    print(f"🔐 Storing client secret in Secrets Manager ({secret_name})...")
+    existing_secret = run_aws([
+        "secretsmanager", "describe-secret",
+        "--secret-id", secret_name,
+    ], region=REGION)
+    if existing_secret:
+        run_aws([
+            "secretsmanager", "put-secret-value",
+            "--secret-id", secret_name,
+            "--secret-string", client_secret,
+        ], region=REGION, check=True)
+    else:
+        run_aws([
+            "secretsmanager", "create-secret",
+            "--name", secret_name,
+            "--secret-string", client_secret,
+        ], region=REGION, check=True)
+    secret_arn = f"arn:aws:secretsmanager:{REGION}:{account_id}:secret:{secret_name}"
+    print(f"✅ Secret stored: {secret_name}")
+
     env_vars = {
         "AGENT_ARN": agent_arn,
         "COGNITO_CLIENT_ID": client_id,
-        "COGNITO_CLIENT_SECRET": client_secret,
+        "COGNITO_CLIENT_SECRET_ARN": secret_arn,
         "COGNITO_TOKEN_URL": token_url,
         "COGNITO_SCOPE": scope,
     }
