@@ -90,7 +90,7 @@ You should see `Uvicorn running on http://0.0.0.0:8000` and `200 OK` on PingRequ
 python show_registration_values.py
 ```
 
-Prints the Endpoint URL (with URL-encoded ARN), Client ID, Client Secret, Exchange URL, Discovery URL, and scope. Also saves the Agent ARN to `.fis_config.json`.
+Prints the Endpoint URL (with URL-encoded ARN), Client ID, masked Client Secret, Exchange URL, Discovery URL, and scope. Full secret is stored in `.fis_config.json` (not printed to stdout). Also saves the Agent ARN to `.fis_config.json`.
 
 ### 6. Register in DevOps Agent Console
 
@@ -101,7 +101,7 @@ Prints the Endpoint URL (with URL-encoded ARN), Client ID, Client Secret, Exchan
 3. Authorization Flow: **OAuth Client Credentials**
 4. Authorization Configuration:
    - Client ID: from step 1 (FIS client)
-   - Client Secret: from step 1 (FIS secret)
+   - Client Secret: retrieve from `.fis_config.json` (`client_secret` field)
    - Exchange URL: from step 1
    - Scope: `default-fis-resource-server/read`
 5. Submit
@@ -134,9 +134,17 @@ python deploy_lambda.py
 Prompts for Agent ARN, Cognito FIS credentials, and optional SNS Topic ARN. Values are auto-populated from `.fis_config.json` if you ran Option 1 first.
 
 The script:
-- Creates IAM role with Lambda execution + SNS publish permissions
+- Creates IAM role with Lambda execution + SNS publish + Secrets Manager read permissions
+- Stores client secret in AWS Secrets Manager (not as plaintext env var)
 - Installs dependencies for Linux Lambda runtime (cross-compiled from any OS)
 - Packages and deploys the Lambda function
+
+Lambda environment variables set:
+- `AGENT_ARN` — AgentCore runtime ARN
+- `COGNITO_CLIENT_ID` — Cognito app client ID
+- `COGNITO_CLIENT_SECRET_ARN` — Secrets Manager ARN (secret retrieved at runtime)
+- `COGNITO_TOKEN_URL` — Cognito token endpoint
+- `COGNITO_SCOPE` — OAuth scope
 
 ### 2. Test Lambda
 
