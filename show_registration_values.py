@@ -153,27 +153,32 @@ def main():
     })
 
     # Try both pool names used in the project
+    # Check Cognito in the saved config region first, then agent region
+    cognito_region = config_store.get("region", region)
     pool_id = None
     client_id = None
     client_secret = None
-    for pool_name, client_name in [("FisMcpPool", "FisMcpFISClient"), ("FisMcpPool", "FisMcpClient"), ("MyUserPool", "MyClient")]:
-        pool_id = find_cognito_pool(pool_name, region)
-        if pool_id:
-            client_id = find_cognito_client(pool_id, client_name, region)
-            if client_id:
-                # Retrieve client secret
-                desc = run_aws([
-                    "cognito-idp", "describe-user-pool-client",
-                    "--user-pool-id", pool_id,
-                    "--client-id", client_id,
-                ], region=region)
-                if desc:
-                    client_secret = desc.get("UserPoolClient", {}).get("ClientSecret")
+    for search_region in dict.fromkeys([cognito_region, region, "us-east-1"]):
+        for pool_name, client_name in [("FisMcpPool", "FisMcpFISClient"), ("FisMcpPool", "FisMcpClient"), ("MyUserPool", "MyClient")]:
+            pool_id = find_cognito_pool(pool_name, search_region)
+            if pool_id:
+                client_id = find_cognito_client(pool_id, client_name, search_region)
+                if client_id:
+                    desc = run_aws([
+                        "cognito-idp", "describe-user-pool-client",
+                        "--user-pool-id", pool_id,
+                        "--client-id", client_id,
+                    ], region=search_region)
+                    if desc:
+                        client_secret = desc.get("UserPoolClient", {}).get("ClientSecret")
+                    cognito_region = search_region
+                    break
+        if client_id:
             break
 
     cognito_domain = None
     if pool_id:
-        cognito_domain = get_cognito_domain(pool_id, region)
+        cognito_domain = get_cognito_domain(pool_id, cognito_region)
 
     # --- Output ---
     print()
@@ -200,14 +205,14 @@ def main():
         print("  Client Secret: ❌ Not found.")
 
     if pool_id:
-        print(f"  Discovery URL: https://cognito-idp.{region}.amazonaws.com/{pool_id}/.well-known/openid-configuration")
+        print(f"  Discovery URL: https://cognito-idp.{cognito_region}.amazonaws.com/{pool_id}/.well-known/openid-configuration")
     else:
         print("  Discovery URL: ❌ No Cognito pool found.")
 
     print()
     if cognito_domain:
-        exchange_url = f"https://{cognito_domain}.auth.{region}.amazoncognito.com/oauth2/token"
-        auth_url = f"https://{cognito_domain}.auth.{region}.amazoncognito.com/oauth2/authorize"
+        exchange_url = f"https://{cognito_domain}.auth.{cognito_region}.amazoncognito.com/oauth2/token"
+        auth_url = f"https://{cognito_domain}.auth.{cognito_region}.amazoncognito.com/oauth2/authorize"
         print(f"  Exchange URL:")
         print(f"    {exchange_url}")
         print()

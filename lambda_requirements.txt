@@ -1,2 +1,2 @@
-mcp==1.26.0 --hash=sha256:904a21c33c25aa98ddbeb47273033c435e595bbacfdb177f4bd87f6dceebe1ca
-boto3==1.42.56 --hash=sha256:e09f91170b19e0ecd5e514321d99323be3e91a58dfa73fd58cf73b7b8b179c84
+mcp>=1.26.0,<2.0.0
+boto3>=1.42.0,<2.0.0

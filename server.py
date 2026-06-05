@@ -3,7 +3,19 @@ import json
 import re
 from mcp.server.fastmcp import FastMCP
 
-SERVER_HOST = os.environ.get("MCP_HOST", "127.0.0.1")
+# Default to 127.0.0.1 for local development security.
+# AgentCore sets AWS_EXECUTION_ENV at runtime; detect it to bind 0.0.0.0 for proxy access.
+if os.environ.get("AWS_EXECUTION_ENV") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    SERVER_HOST = os.environ.get("MCP_HOST", "0.0.0.0")
+else:
+    SERVER_HOST = os.environ.get("MCP_HOST", "127.0.0.1")
+
+# AgentCore direct_code_deploy routes traffic through an internal proxy that sets
+# a non-standard Host header (e.g., cell01.us-west-2.prod.arp.kepler-analytics.aws.dev).
+# Uvicorn rejects these by default. This setting is safe because the runtime is not
+# directly internet-facing — all traffic passes through AgentCore's authenticated gateway.
+os.environ.setdefault("UVICORN_FORWARDED_ALLOW_IPS", "*")
+
 mcp = FastMCP(host=SERVER_HOST, stateless_http=True)
 
 MAX_INPUT_SIZE = 10240  # 10KB
@@ -89,10 +101,12 @@ def create_fis_template(recommendation: dict, target: dict) -> str:
             return json.dumps({"error": "Invalid roleArn format. Expected arn:aws:iam::<account>:role/<name>"})
 
         # Ensure roleArn and stopConditionArn belong to the same account
-        role_account = role_arn.split(":")[4]
-        stop_account = target.get("stopConditionArn", "").split(":")[4] if target.get("stopConditionArn") else ""
-        if stop_account and role_account != stop_account:
-            return json.dumps({"error": "roleArn and stopConditionArn must belong to the same AWS account"})
+        stop_arn_raw = target.get("stopConditionArn", "")
+        if stop_arn_raw and stop_arn_raw.count(":") >= 5:
+            role_account = role_arn.split(":")[4]
+            stop_account = stop_arn_raw.split(":")[4]
+            if role_account != stop_account:
+                return json.dumps({"error": "roleArn and stopConditionArn must belong to the same AWS account"})
 
         selection_mode = target.get("selectionMode", "COUNT(1)")
         if not ALLOWED_SELECTION_MODES.match(selection_mode):
