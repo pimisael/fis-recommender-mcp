@@ -1,0 +1,4 @@
+# Top-level dependencies for FIS Recommender MCP Server
+# Run: pip download + pip hash to regenerate requirements.txt with hashes
+mcp==1.27.2
+boto3==1.38.35
