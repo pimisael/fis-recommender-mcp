@@ -210,6 +210,31 @@ class TestLambdaHandlerSecurity:
         with pytest.raises(ValueError, match="Invalid token URL"):
             get_bearer_token()
 
+    def test_secrets_manager_retrieval_path(self):
+        """Finding #2: Secret fetched from Secrets Manager when ARN is set."""
+        import os
+        from unittest.mock import patch, MagicMock
+
+        os.environ["COGNITO_CLIENT_ID"] = "test"
+        os.environ["COGNITO_CLIENT_SECRET_ARN"] = "arn:aws:secretsmanager:us-east-1:123456789012:secret:fis-mcp/test"
+        os.environ["COGNITO_TOKEN_URL"] = "https://fismcp.auth.us-east-1.amazoncognito.com/oauth2/token"
+        os.environ["AGENT_ARN"] = "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/test"
+        os.environ.pop("COGNITO_CLIENT_SECRET", None)
+
+        mock_sm = MagicMock()
+        mock_sm.get_secret_value.return_value = {"SecretString": "test-secret"}
+
+        with patch("boto3.client", return_value=mock_sm):
+            # Will fail at HTTP call but should reach Secrets Manager first
+            try:
+                from lambda_function import get_bearer_token
+                get_bearer_token()
+            except Exception:
+                pass
+            mock_sm.get_secret_value.assert_called_once_with(
+                SecretId="arn:aws:secretsmanager:us-east-1:123456789012:secret:fis-mcp/test"
+            )
+
 
 # === Config Store Tests ===
 
