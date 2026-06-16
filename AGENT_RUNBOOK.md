@@ -13,7 +13,7 @@
 - **Protocol**: MCP over Streamable HTTP
 
 ### OAuth Configuration
-- **Client ID**: `4vu6ekj7la2n6scsuval2jqr32`
+- **Client ID**: `<COGNITO_CLIENT_ID>`
 - **Exchange URL**: `https://fismcp.auth.us-east-1.amazoncognito.com/oauth2/token`
 - **Authorization URL**: `https://fismcp.auth.us-east-1.amazoncognito.com/oauth2/authorize`
 - **Scopes**: `openid`
@@ -121,8 +121,8 @@ python3 mcp_remote_test.py
 ### Refresh Token
 ```bash
 aws cognito-idp initiate-auth \
-  --client-id 4vu6ekj7la2n6scsuval2jqr32 \
+  --client-id <COGNITO_CLIENT_ID> \
   --auth-flow USER_PASSWORD_AUTH \
-  --auth-parameters USERNAME=fisMcpUser,PASSWORD=fisMcpUser123 \
+  --auth-parameters USERNAME=<COGNITO_USERNAME>,PASSWORD=<COGNITO_PASSWORD> \
   --region us-east-1 | jq -r '.AuthenticationResult.AccessToken'
 ```

@@ -14,7 +14,7 @@
                              ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │              AWS Cognito User Pool (us-east-1)                   │
-│  Pool: us-east-1_kx5WFdg3m                                       │
+│  Pool: <COGNITO_USER_POOL_ID>                                       │
 │  Domain: fismcp.auth.us-east-1.amazoncognito.com                 │
 │  Flow: OAuth 2.0 + PKCE                                          │
 └────────────────────────────┬─────────────────────────────────────┘

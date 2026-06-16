@@ -47,8 +47,8 @@ MCP server deployed on AWS Bedrock AgentCore that recommends and creates AWS FIS
   - `create_fis_template`: Creates FIS experiment templates via boto3
 
 ### 2. Authentication (Cognito)
-- **User Pool**: us-east-1_kx5WFdg3m
-- **Client ID**: 4vu6ekj7la2n6scsuval2jqr32
+- **User Pool**: `<COGNITO_USER_POOL_ID>`
+- **Client ID**: `<COGNITO_CLIENT_ID>`
 - **Domain**: fismcp.auth.us-east-1.amazoncognito.com
 - **Flow**: OAuth 2.0 Authorization Code + PKCE
 
