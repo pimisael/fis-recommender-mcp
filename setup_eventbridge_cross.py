@@ -4,8 +4,8 @@
 # DATE: 2026-04-12
 # VERSION: 1.0
 # PURPOSE: Prompts user for input config store., ensures sns topic, Create Lambda execution role if it doesn't exist.
-# DEPENDENCIES: config_store, json, os, sys, tempfile, time, utils
-# EXPORTS: get_account_id, ensure_sns_topic, ensure_iam_role, ensure_eventbridge_rule, generate_lambda_code, main
+# DEPENDENCIES: config_store, json, os, sys, time, utils
+# EXPORTS: get_account_id, ensure_sns_topic, ensure_iam_role, ensure_eventbridge_rule, get_lambda_code_path, main
 # ISSUE : None
 # ============================================================
 #!/usr/bin/env python3
@@ -13,7 +13,6 @@ import json
 import os
 import sys
 import time
-import tempfile
 from utils import run_aws
 import config_store
 
@@ -167,86 +166,9 @@ def ensure_eventbridge_rule(account_id):
     return rule_arn
 
 
-# ============================================================
-# NAME: generate_lambda_code
-# TYPE: function
-# AUTHOR: vsharmro
-# DATE: 2026-04-12
-# PARAMETERS: sns_topic_arn
-# PURPOSE: Generate Lambda function code with dynamic SNS ARN.
-# CALLED BY: main
-# ISSUE : None
-# ============================================================
-def generate_lambda_code(sns_topic_arn):
-    """Generate Lambda function code with dynamic SNS ARN."""
-    return f'''\
-import json
-import os
-import base64
-import urllib.request
-import urllib.parse
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
-import asyncio
-import boto3
-
-SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "{sns_topic_arn}")
-
-
-def get_bearer_token():
-    """Get FIS bearer token via client_credentials."""
-    client_id = os.environ["COGNITO_CLIENT_ID"]
-    client_secret = os.environ["COGNITO_CLIENT_SECRET"]
-    token_url = os.environ["COGNITO_TOKEN_URL"]
-    scope = os.environ.get("COGNITO_SCOPE", "default-fis-resource-server/read")
-
-    auth = base64.b64encode(f"{{client_id}}:{{client_secret}}".encode()).decode()
-    data = urllib.parse.urlencode({{"grant_type": "client_credentials", "scope": scope}}).encode()
-
-    req = urllib.request.Request(token_url, data=data)
-    req.add_header("Content-Type", "application/x-www-form-urlencoded")
-    req.add_header("Authorization", f"Basic {{auth}}")
-
-    resp = urllib.request.urlopen(req)
-    return json.loads(resp.read())["access_token"]
-
-
-async def call_mcp(finding):
-    """Call MCP server and get recommendations."""
-    agent_arn = os.environ["AGENT_ARN"]
-    bearer_token = get_bearer_token()
-
-    region = agent_arn.split(":")[3]
-    encoded_arn = agent_arn.replace(":", "%3A").replace("/", "%2F")
-    mcp_url = f"https://bedrock-agentcore.{{region}}.amazonaws.com/runtimes/{{encoded_arn}}/invocations?qualifier=DEFAULT"
-    headers = {{"authorization": f"Bearer {{bearer_token}}", "Content-Type": "application/json"}}
-
-    async with streamablehttp_client(mcp_url, headers, timeout=120, terminate_on_close=False) as (r, w, _):
-        async with ClientSession(r, w) as session:
-            await session.initialize()
-            result = await session.call_tool("recommend_fis_experiments", arguments={{"finding": finding}})
-            return result.content[0].text
-
-
-def lambda_handler(event, context):
-    finding = {{
-        "id": event.get("detail", {{}}).get("investigationId", "unknown"),
-        "summary": event.get("detail", {{}}).get("summary", ""),
-        "type": event.get("detail", {{}}).get("findingType", ""),
-        "description": event.get("detail", {{}}).get("description", ""),
-    }}
-
-    recommendations = asyncio.run(call_mcp(finding))
-
-    sns = boto3.client("sns")
-    sns.publish(
-        TopicArn=SNS_TOPIC_ARN,
-        Subject=f"FIS Recommendations for {{finding['id']}}",
-        Message=recommendations,
-    )
-
-    return {{"statusCode": 200, "body": recommendations}}
-'''
+def get_lambda_code_path():
+    """Return path to the hardened lambda_function.py (reuses F2/F8 fixes)."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "lambda_function.py")
 
 
 # ============================================================
@@ -292,13 +214,13 @@ def main():
     role_arn = ensure_iam_role(account_id)
     ensure_eventbridge_rule(account_id)
 
-    # Generate and save Lambda code
-    lambda_code = generate_lambda_code(sns_topic_arn)
-    output_path = os.path.join(tempfile.gettempdir(), "devops-agent-fis-lambda.py")
-    with open(output_path, "w") as f:
-        f.write(lambda_code)
+    # Use the hardened lambda_function.py (includes F2 Secrets Manager + F8 token URL validation)
+    lambda_code_path = get_lambda_code_path()
+    if not os.path.exists(lambda_code_path):
+        print(f"❌ lambda_function.py not found at {lambda_code_path}")
+        return
 
-    print(f"\n📄 Lambda code generated at: {output_path}")
+    print(f"\n📄 Using hardened Lambda handler: {lambda_code_path}")
 
     # Subscribe email to SNS
     if email:
@@ -321,7 +243,7 @@ def main():
     print(f"  SNS Topic:        {sns_topic_arn}")
     print(f"  EventBridge Rule: {RULE_NAME}")
     print(f"  IAM Role:         {role_arn}")
-    print(f"  Lambda Code:      {output_path}")
+    print(f"  Lambda Code:      {lambda_code_path}")
     print()
     print("Next steps:")
     print("  1. Deploy the Lambda using: python deploy_lambda.py")
